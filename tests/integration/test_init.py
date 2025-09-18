@@ -5,12 +5,13 @@ import copy
 
 import yaml
 
+from packit.cli.utils import get_latest_precommit_hook_release
 from packit.utils.commands import cwd
 from tests.spellbook import call_packit
 
 PACKIT_PRECOMMIT_CONFIG = {
     "repo": "https://github.com/packit/pre-commit-hooks",
-    "rev": "v1.3.0",
+    "rev": get_latest_precommit_hook_release(),
     "hooks": [{"id": "validate-config"}],
 }
 

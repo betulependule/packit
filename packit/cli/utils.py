@@ -13,6 +13,7 @@ from typing import Optional, Union
 import click
 from github import GithubException
 from ogr.parsing import parse_git_repo
+from ogr.services.github.service import GithubService
 
 from packit.api import PackitAPI
 from packit.config import Config, JobType, get_local_package_config
@@ -374,6 +375,14 @@ def get_existing_config(working_dir: Path) -> Optional[Path]:
 
 def get_precommit_config(working_dir: Path) -> Optional[Path]:
     return get_file(working_dir, ".pre-commit-config.yaml")
+
+
+def get_latest_precommit_hook_release() -> Optional[str]:
+    service = GithubService(token=None, instance_url="https://github.com")
+    project = service.get_project(repo="pre-commit-hooks", namespace="packit")
+
+    release = project.get_latest_release()
+    return release.tag_name if release else None
 
 
 def get_file(working_dir: Path, filename: str) -> Optional[Path]:

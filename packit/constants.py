@@ -89,10 +89,10 @@ upstream_package_name: {upstream_package_name}
 downstream_package_name: {downstream_package_name}
 """
 
-PRECOMMIT_CONFIG = {
+PRECOMMIT_CONFIG_TEMPLATE = {
     # check validity of Packit configuration
     "repo": "https://github.com/packit/pre-commit-hooks",
-    "rev": "v1.3.0",
+    "rev": None,
     "hooks": [{"id": "validate-config"}],
 }
 
