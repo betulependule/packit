@@ -31,18 +31,18 @@ def test_copr_build_existing_project(cwd_upstream_or_distgit, api_instance):
     instructions = "the instructions"
     chroots = ["fedora-rawhide-x86_64"]
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        flexmock(
-            chroot_repos=flexmock(keys=lambda: chroots),
-            description=description,
-            instructions=instructions,
-            unlisted_on_hp=True,
-            delete_after_days=60,
-            additional_repos=[],
-            ownername=owner,
-            module_hotfixes=False,
-        ),
+    project_mock = flexmock(
+        chroot_repos=flexmock(keys=lambda: chroots),
+        description=description,
+        instructions=instructions,
+        unlisted_on_hp=True,
+        delete_after_days=60,
+        additional_repos=[],
+        ownername=owner,
+        module_hotfixes=False,
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     # no change in settings => no edit
     flexmock(ProjectProxy).should_receive("edit").times(0)
@@ -80,18 +80,18 @@ def test_copr_build_existing_project_change_settings(
     instructions = "the instructions"
     chroots = ["fedora-rawhide-x86_64"]
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        flexmock(
-            chroot_repos=flexmock(keys=lambda: chroots),
-            description=description,
-            instructions=instructions,
-            unlisted_on_hp=True,
-            delete_after_days=60,
-            additional_repos=[],
-            ownername=owner,
-            module_hotfixes=False,
-        ),
+    project_mock = flexmock(
+        chroot_repos=flexmock(keys=lambda: chroots),
+        description=description,
+        instructions=instructions,
+        unlisted_on_hp=True,
+        delete_after_days=60,
+        additional_repos=[],
+        ownername=owner,
+        module_hotfixes=False,
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     flexmock(ProjectProxy).should_receive(
         "edit",
@@ -151,28 +151,28 @@ def test_copr_build_existing_project_munch_no_settings_change(
     project = "project-name"
     chroots = ["fedora-rawhide-x86_64"]
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        munchify(
-            {
-                "additional_repos": [],
-                "auto_prune": True,
-                "chroot_repos": {
-                    "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
-                    "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
-                },
-                "contact": "https://github.com/packit/packit/issues",
-                "description": "Continuous builds initiated by packit service.\n"
-                "For more info check out https://packit.dev/",
-                "devel_mode": False,
-                "enable_net": False,
-                "full_name": "packit/packit-hello-world-127-stg",
-                "homepage": "",
-                "id": 34245,
-                "ownername": owner,
-                "module_hotfixes": False,
+    project_mock = munchify(
+        {
+            "additional_repos": [],
+            "auto_prune": True,
+            "chroot_repos": {
+                "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
+                "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
             },
-        ),
+            "contact": "https://github.com/packit/packit/issues",
+            "description": "Continuous builds initiated by packit service.\n"
+            "For more info check out https://packit.dev/",
+            "devel_mode": False,
+            "enable_net": False,
+            "full_name": "packit/packit-hello-world-127-stg",
+            "homepage": "",
+            "id": 34245,
+            "ownername": owner,
+            "module_hotfixes": False,
+        },
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     flexmock(ProjectProxy).should_receive("edit").and_return().times(0)
 
@@ -210,28 +210,28 @@ def test_copr_build_existing_project_munch_additional_repos_change(
     project = "project-name"
     chroots = ["fedora-rawhide-x86_64"]
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        munchify(
-            {
-                "additional_repos": [],
-                "auto_prune": True,
-                "chroot_repos": {
-                    "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
-                    "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
-                },
-                "contact": "https://github.com/packit/packit/issues",
-                "description": "Continuous builds initiated by packit service.\n"
-                "For more info check out https://packit.dev/",
-                "devel_mode": False,
-                "enable_net": False,
-                "full_name": "packit/packit-hello-world-127-stg",
-                "homepage": "",
-                "id": 34245,
-                "ownername": owner,
-                "module_hotfixes": False,
+    project_mock = munchify(
+        {
+            "additional_repos": [],
+            "auto_prune": True,
+            "chroot_repos": {
+                "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
+                "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
             },
-        ),
+            "contact": "https://github.com/packit/packit/issues",
+            "description": "Continuous builds initiated by packit service.\n"
+            "For more info check out https://packit.dev/",
+            "devel_mode": False,
+            "enable_net": False,
+            "full_name": "packit/packit-hello-world-127-stg",
+            "homepage": "",
+            "id": 34245,
+            "ownername": owner,
+            "module_hotfixes": False,
+        },
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     flexmock(ProjectProxy).should_receive("edit").and_return().once()
 
@@ -273,28 +273,28 @@ def test_copr_build_existing_project_munch_list_on_homepage_change(
     project = "project-name"
     chroots = ["fedora-rawhide-x86_64"]
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        munchify(
-            {
-                "additional_repos": [],
-                "auto_prune": True,
-                "chroot_repos": {
-                    "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
-                    "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
-                },
-                "contact": "https://github.com/packit/packit/issues",
-                "description": "Continuous builds initiated by packit service.\n"
-                "For more info check out https://packit.dev/",
-                "devel_mode": False,
-                "enable_net": False,
-                "full_name": "packit/packit-hello-world-127-stg",
-                "homepage": "",
-                "id": 34245,
-                "ownername": owner,
-                "module_hotfixes": False,
+    project_mock = munchify(
+        {
+            "additional_repos": [],
+            "auto_prune": True,
+            "chroot_repos": {
+                "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
+                "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
             },
-        ),
+            "contact": "https://github.com/packit/packit/issues",
+            "description": "Continuous builds initiated by packit service.\n"
+            "For more info check out https://packit.dev/",
+            "devel_mode": False,
+            "enable_net": False,
+            "full_name": "packit/packit-hello-world-127-stg",
+            "homepage": "",
+            "id": 34245,
+            "ownername": owner,
+            "module_hotfixes": False,
+        },
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     # We don't get that value from Copr. => We can't check the change. => No edit.
     flexmock(ProjectProxy).should_receive("edit").and_return().times(0)
@@ -333,29 +333,29 @@ def test_copr_build_existing_project_munch_do_not_update_booleans_by_default(
     project = "project-name"
     chroots = ["fedora-rawhide-x86_64"]
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        munchify(
-            {
-                "additional_repos": [],
-                "auto_prune": True,
-                "chroot_repos": {
-                    "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
-                    "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
-                },
-                "contact": "https://github.com/packit-service/packit/issues",
-                "description": "Continuous builds initiated by packit service.\n"
-                "For more info check out https://packit.dev/",
-                "unlisted_on_hp": True,  # Value not present currently.
-                "devel_mode": False,
-                "enable_net": False,
-                "full_name": "packit/packit-hello-world-127-stg",
-                "homepage": "",
-                "id": 34245,
-                "ownername": owner,
-                "module_hotfixes": False,
+    project_mock = munchify(
+        {
+            "additional_repos": [],
+            "auto_prune": True,
+            "chroot_repos": {
+                "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
+                "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
             },
-        ),
+            "contact": "https://github.com/packit-service/packit/issues",
+            "description": "Continuous builds initiated by packit service.\n"
+            "For more info check out https://packit.dev/",
+            "unlisted_on_hp": True,  # Value not present currently.
+            "devel_mode": False,
+            "enable_net": False,
+            "full_name": "packit/packit-hello-world-127-stg",
+            "homepage": "",
+            "id": 34245,
+            "ownername": owner,
+            "module_hotfixes": False,
+        },
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     # Even if we receive this info from Copr, we can't edit that value if it is `None`.
     flexmock(ProjectProxy).should_receive("edit").and_return().times(0)
@@ -410,31 +410,31 @@ def test_copr_build_existing_project_munch_chroot_updates(
     u, d, api = api_instance
     project = "project-name"
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        munchify(
-            {
-                "additional_repos": [],
-                "auto_prune": True,
-                "chroot_repos": {
-                    "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
-                    "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
-                    "epel-8-x86_64": "https://download.copr.fedorainfracloud.org/"
-                    "results/packit/packit-hello-world-127-stg/epel-8-x86_64/",
-                },
-                "contact": "https://github.com/packit-service/packit/issues",
-                "description": "Continuous builds initiated by packit service.\n"
-                "For more info check out https://packit.dev/",
-                "unlisted_on_hp": True,  # Value not present currently.
-                "devel_mode": False,
-                "enable_net": False,
-                "full_name": "packit/packit-hello-world-127-stg",
-                "homepage": "",
-                "id": 34245,
-                "ownername": owner,
-                "module_hotfixes": False,
+    project_mock = munchify(
+        {
+            "additional_repos": [],
+            "auto_prune": True,
+            "chroot_repos": {
+                "fedora-rawhide-x86_64": "https://download.copr.fedorainfracloud.org/"
+                "results/packit/packit-hello-world-127-stg/fedora-rawhide-x86_64/",
+                "epel-8-x86_64": "https://download.copr.fedorainfracloud.org/"
+                "results/packit/packit-hello-world-127-stg/epel-8-x86_64/",
             },
-        ),
+            "contact": "https://github.com/packit-service/packit/issues",
+            "description": "Continuous builds initiated by packit service.\n"
+            "For more info check out https://packit.dev/",
+            "unlisted_on_hp": True,  # Value not present currently.
+            "devel_mode": False,
+            "enable_net": False,
+            "full_name": "packit/packit-hello-world-127-stg",
+            "homepage": "",
+            "id": 34245,
+            "ownername": owner,
+            "module_hotfixes": False,
+        },
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     if expected_chroots_for_edit:
         expected_chroots_for_edit.sort()
@@ -482,18 +482,18 @@ def test_copr_build_existing_project_error_on_change_settings(
     instructions = "the instructions"
     chroots = ["fedora-rawhide-x86_64"]
 
-    flexmock(ProjectProxy).should_receive("add").and_return(
-        flexmock(
-            chroot_repos=flexmock(keys=lambda: chroots),
-            description=description,
-            instructions=instructions,
-            unlisted_on_hp=True,
-            delete_after_days=60,
-            additional_repos=[],
-            ownername=owner,
-            module_hotfixes=False,
-        ),
+    project_mock = flexmock(
+        chroot_repos=flexmock(keys=lambda: chroots),
+        description=description,
+        instructions=instructions,
+        unlisted_on_hp=True,
+        delete_after_days=60,
+        additional_repos=[],
+        ownername=owner,
+        module_hotfixes=False,
     )
+    flexmock(ProjectProxy).should_receive("add").and_return(project_mock)
+    flexmock(ProjectProxy).should_receive("get").and_return(project_mock)
 
     flexmock(ProjectProxy).should_receive("request_permissions").with_args(
         ownername=owner,
@@ -653,13 +653,17 @@ def test_create_or_update_copr_project(copr_client_mock):
         "module_hotfixes": None,
     }
 
+    project_result = flexmock(
+        chroot_repos={"centos-stream-8-x86_64": "https://repo.url"},
+        **options,
+    )
     copr_client_mock.project_proxy = flexmock()
     copr_client_mock.project_chroot_proxy = flexmock()
     flexmock(copr_client_mock.project_proxy).should_receive("add").and_return(
-        flexmock(
-            chroot_repos={"centos-stream-8-x86_64": "https://repo.url"},
-            **options,
-        ),
+        project_result,
+    )
+    flexmock(copr_client_mock.project_proxy).should_receive("get").and_return(
+        project_result,
     )
     flexmock(copr_client_mock.project_chroot_proxy).should_receive("get").and_return(
         {"additional_packages": []},
@@ -690,15 +694,17 @@ def test_create_or_update_copr_project_race_condition(copr_client_mock):
         "module_hotfixes": None,
     }
 
+    project_result = flexmock(
+        chroot_repos={"centos-stream-8-x86_64": "https://repo.url"},
+        **options,
+    )
     copr_client_mock.project_proxy = flexmock()
     copr_client_mock.project_chroot_proxy = flexmock()
     flexmock(copr_client_mock.project_proxy).should_receive("add").twice().and_raise(
         PackitCoprProjectException("already exists, 400 BAD REQUEST"),
-    ).and_return(
-        flexmock(
-            chroot_repos={"centos-stream-8-x86_64": "https://repo.url"},
-            **options,
-        ),
+    ).and_return(project_result)
+    flexmock(copr_client_mock.project_proxy).should_receive("get").and_return(
+        project_result,
     )
     flexmock(copr_client_mock.project_chroot_proxy).should_receive("get").and_return(
         {"additional_packages": []},
