@@ -10,7 +10,9 @@ from bugzilla import Bugzilla
 from deepdiff import DeepDiff
 from flexmock import flexmock
 
+import packit.config.aliases
 from packit.config import JobConfig, PackageConfig
+from packit.config.aliases import Distro
 from packit.utils.commands import cwd
 from packit.utils.repo import create_new_repo
 from tests.spellbook import (
@@ -30,6 +32,57 @@ from tests.spellbook import (
 @pytest.fixture(autouse=True)
 def bugzilla_mock():
     flexmock(Bugzilla).new_instances(flexmock(query=lambda *_, **__: []))
+
+
+@pytest.fixture()
+def mock_get_aliases():
+    flexmock(packit.config.aliases).should_receive("get_aliases").and_return(
+        {
+            "fedora-all": [
+                Distro("fedora-29", "f29"),
+                Distro("fedora-30", "f30"),
+                Distro("fedora-31", "f31"),
+                Distro("fedora-32", "f32"),
+                Distro("fedora-33", "f33"),
+                Distro("fedora-rawhide", "rawhide"),
+            ],
+            "fedora-stable": [Distro("fedora-31", "f31"), Distro("fedora-32", "f32")],
+            "fedora-branched": [Distro("fedora-33", "f33")],
+            "fedora-development": [
+                Distro("fedora-33", "f33"),
+                Distro("fedora-rawhide", "rawhide"),
+            ],
+            "epel-all": [
+                Distro("epel-6", "el6"),
+                Distro("epel-7", "epel7"),
+                Distro("epel-8", "epel8"),
+                Distro("epel-9", "epel9"),
+                Distro("epel-10.0", "epel10.0"),
+                Distro("epel-10.1", "epel10"),
+            ],
+            "epel-10-all": [
+                Distro("epel-10.0", "epel10.0"),
+                Distro("epel-10.1", "epel10"),
+            ],
+            "epel-10-branched": [
+                Distro("epel-10.0", "epel10.0"),
+            ],
+            "epel-10": [
+                Distro("epel-10.1", "epel10"),
+            ],
+            "opensuse-leap-all": [
+                "opensuse-leap-15.5",
+                "opensuse-leap-15.4",
+                "opensuse-leap-15.3",
+            ],
+            "opensuse-all": [
+                "opensuse-tumbleweed",
+                "opensuse-leap-15.5",
+                "opensuse-leap-15.4",
+                "opensuse-leap-15.3",
+            ],
+        },
+    )
 
 
 def get_git_repo_and_remote(

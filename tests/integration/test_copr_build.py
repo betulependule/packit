@@ -546,7 +546,11 @@ def test_copr_build_no_owner(cwd_upstream_or_distgit, api_instance):
     assert "owner not set" in str(ex)
 
 
-def test_copr_build_cli_no_project_configured(upstream_and_remote, copr_client_mock):
+def test_copr_build_cli_no_project_configured(
+    upstream_and_remote,
+    copr_client_mock,
+    mock_get_aliases,
+):
     upstream, _ = upstream_and_remote
     flexmock(PackitAPI).should_receive("run_copr_build").with_args(
         project="packit-cli-upstream_remote-upstream_git-main",
@@ -574,7 +578,11 @@ def test_copr_build_cli_no_project_configured(upstream_and_remote, copr_client_m
     run_packit(["build", "in-copr", "--no-wait"], working_dir=upstream)
 
 
-def test_copr_build_cli_project_set_via_cli(upstream_and_remote, copr_client_mock):
+def test_copr_build_cli_project_set_via_cli(
+    upstream_and_remote,
+    copr_client_mock,
+    mock_get_aliases,
+):
     upstream, _ = upstream_and_remote
     flexmock(PackitAPI).should_receive("run_copr_build").with_args(
         project="the-project",
@@ -605,7 +613,11 @@ def test_copr_build_cli_project_set_via_cli(upstream_and_remote, copr_client_moc
     )
 
 
-def test_copr_build_cli_project_set_from_config(upstream_and_remote, copr_client_mock):
+def test_copr_build_cli_project_set_from_config(
+    upstream_and_remote,
+    copr_client_mock,
+    mock_get_aliases,
+):
     upstream, _ = upstream_and_remote
 
     flexmock(PackageConfig).should_receive("get_copr_build_project_value").and_return(
