@@ -26,6 +26,8 @@ from packit.local_project import LocalProject
 
 logger = logging.getLogger(__name__)
 
+_MAX_PROJECT_EDIT_RETRIES = 3
+
 
 def not_copr_race_condition(e):
     is_race_condition = "already exists" in str(e) and "400" in str(e)
@@ -274,23 +276,49 @@ class CoprHelper:
             logger.error(ex.result)
             raise PackitCoprProjectException(error) from ex
 
-        fields_to_change = self.get_fields_to_change(
-            copr_proj=copr_proj,
-            additional_repos=additional_repos,
-            chroots=chroots,
-            description=description,
-            instructions=instructions,
-            list_on_homepage=list_on_homepage,
-            delete_after_days=delete_after_days,
-            module_hotfixes=module_hotfixes,
-            bootstrap=bootstrap,
-        )
+        fields_to_change: dict[str, Any] = {}
+        failure_message = f"Copr project update failed for '{owner}/{project}' project."
         try:
-            if fields_to_change:
+            # Re-read project state and retry on chroot conflicts caused by
+            # concurrent tasks (multiple packages sharing the same Copr project).
+            for attempt in range(_MAX_PROJECT_EDIT_RETRIES):
+                copr_proj = self.copr_client.project_proxy.get(
+                    ownername=owner,
+                    projectname=project,
+                )
+                fields_to_change = self.get_fields_to_change(
+                    copr_proj=copr_proj,
+                    additional_repos=additional_repos,
+                    chroots=chroots,
+                    description=description,
+                    instructions=instructions,
+                    list_on_homepage=list_on_homepage,
+                    delete_after_days=delete_after_days,
+                    module_hotfixes=module_hotfixes,
+                    bootstrap=bootstrap,
+                )
+                if not fields_to_change:
+                    break
+
                 failure_message = (
                     f"Copr project update failed for '{owner}/{project}' project."
                 )
-                self.update_copr_project(owner, project, fields_to_change)
+                try:
+                    self.update_copr_project(owner, project, fields_to_change)
+                    break
+                except CoprRequestException as ex:
+                    if (
+                        "Can't drop chroot" in str(ex)
+                        and attempt < _MAX_PROJECT_EDIT_RETRIES - 1
+                    ):
+                        logger.warning(
+                            f"Copr project edit conflict on attempt "
+                            f"{attempt + 1}/{_MAX_PROJECT_EDIT_RETRIES}, "
+                            f"re-reading project state and retrying: {ex}",
+                        )
+                        time.sleep(3)
+                        continue
+                    raise
 
             failure_message = (
                 f"Copr project chroot configuration update failed "

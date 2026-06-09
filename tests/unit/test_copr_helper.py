@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: MIT
 
 import pytest
+from copr.v3.exceptions import CoprRequestException
 from flexmock import flexmock
 
 import packit
-from packit.copr_helper import CoprHelper
+from packit.copr_helper import _MAX_PROJECT_EDIT_RETRIES, CoprHelper
 
 
 class TestCoprHelper:
@@ -165,3 +166,123 @@ class TestCoprHelper:
             )
             == result_dict
         )
+
+
+class TestCoprProjectEditRetry:
+    """Tests for the retry logic in create_or_update_copr_project
+    when concurrent tasks cause chroot conflicts."""
+
+    @staticmethod
+    def _make_copr_helper():
+        project_proxy_mock = flexmock()
+        copr_client_mock = flexmock(
+            config={"copr_url": "https://fedoracloud.org"},
+            project_proxy=project_proxy_mock,
+            project_chroot_proxy=flexmock(),
+        )
+        flexmock(packit.copr_helper.CoprClient).should_receive(
+            "create_from_config_file",
+        ).and_return(copr_client_mock)
+
+        upstream_mock = flexmock(git_url="https://github.com/test/test.git")
+        copr_helper = CoprHelper(upstream_mock)
+        return copr_helper, project_proxy_mock
+
+    @staticmethod
+    def _make_project_mock(**chroot_repos):
+        return flexmock(
+            chroot_repos=chroot_repos,
+            description="test",
+            unlisted_on_hp=True,
+            delete_after_days=60,
+            additional_repos=[],
+            module_hotfixes=False,
+            bootstrap="default",
+        )
+
+    def test_project_edit_retries_on_chroot_conflict(self):
+        copr_helper, project_proxy = self._make_copr_helper()
+
+        # Stale snapshot: missing centos chroot added by a concurrent task
+        project_stale = self._make_project_mock(
+            **{"fedora-rawhide-x86_64": "http://repo/fedora-rawhide-x86_64"},
+        )
+        # Fresh re-read: now includes centos (added by concurrent task),
+        # but still missing fedora-44 (the chroot we need to add)
+        project_fresh = self._make_project_mock(
+            **{
+                "fedora-rawhide-x86_64": "http://repo/fedora-rawhide-x86_64",
+                "centos-stream-10-x86_64": "http://repo/centos-stream-10-x86_64",
+            },
+        )
+
+        project_proxy.should_receive("add").and_return(project_stale).once()
+        project_proxy.should_receive("get").and_return(
+            project_stale,
+        ).and_return(project_fresh).twice()
+
+        project_proxy.should_receive("edit").and_raise(
+            CoprRequestException(
+                "Can't drop chroot from project, related build 123 is still in progress",
+            ),
+        ).and_return(None).twice()
+
+        flexmock(packit.copr_helper.time).should_receive("sleep").once()
+
+        copr_helper.create_or_update_copr_project(
+            project="test-project",
+            chroots=["fedora-rawhide-x86_64", "fedora-44-x86_64"],
+            owner="packit",
+        )
+
+    def test_project_edit_raises_after_max_retries(self):
+        copr_helper, project_proxy = self._make_copr_helper()
+
+        project_mock = self._make_project_mock(
+            **{"fedora-rawhide-x86_64": "http://repo/fedora-rawhide-x86_64"},
+        )
+
+        project_proxy.should_receive("add").and_return(project_mock).once()
+        project_proxy.should_receive("get").and_return(
+            project_mock,
+        ).times(_MAX_PROJECT_EDIT_RETRIES)
+
+        project_proxy.should_receive("edit").and_raise(
+            CoprRequestException(
+                "Can't drop chroot from project, related build 123 is still in progress",
+            ),
+        ).times(_MAX_PROJECT_EDIT_RETRIES)
+
+        flexmock(packit.copr_helper.time).should_receive("sleep").times(
+            _MAX_PROJECT_EDIT_RETRIES - 1,
+        )
+
+        with pytest.raises(CoprRequestException, match="Can't drop chroot"):
+            copr_helper.create_or_update_copr_project(
+                project="test-project",
+                chroots=["fedora-rawhide-x86_64", "fedora-44-x86_64"],
+                owner="packit",
+            )
+
+    def test_project_edit_does_not_retry_other_errors(self):
+        copr_helper, project_proxy = self._make_copr_helper()
+
+        project_mock = self._make_project_mock(
+            **{"fedora-rawhide-x86_64": "http://repo/fedora-rawhide-x86_64"},
+        )
+
+        project_proxy.should_receive("add").and_return(project_mock).once()
+        project_proxy.should_receive("get").and_return(project_mock).once()
+
+        project_proxy.should_receive("edit").and_raise(
+            CoprRequestException("Unable to connect to Copr"),
+        ).once()
+
+        flexmock(packit.copr_helper.time).should_receive("sleep").never()
+
+        with pytest.raises(CoprRequestException, match="Unable to connect"):
+            copr_helper.create_or_update_copr_project(
+                project="test-project",
+                chroots=["fedora-rawhide-x86_64", "fedora-44-x86_64"],
+                owner="packit",
+            )
