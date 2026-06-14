@@ -44,13 +44,13 @@ def test_prepare_sources_command(cwd_upstream_or_distgit):
     assert specfile_path.exists()
 
 
-@pytest.mark.parametrize(
-    "cwd_upstream_or_distgit",
-    ["upstream", "upstream-with-multiple-sources"],  # Only test upstream variants
-    indirect=True,
-)
-def test_prepare_sources_with_preserve_spec(cwd_upstream_or_distgit):
+def test_prepare_sources_with_preserve_spec(cwd_upstream_or_distgit, request):
     """Test that --preserve-spec flag prevents spec file modifications"""
+    if request.node.callspec.params["cwd_upstream_or_distgit"] not in (
+        "upstream",
+        "upstream-with-multiple-sources",
+    ):
+        pytest.skip("Only test upstream variants")
     # Read original spec file content before prepare-sources
     spec_path = next(cwd_upstream_or_distgit.glob("*.spec"))
     original_spec = spec_path.read_text()
