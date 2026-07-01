@@ -12,6 +12,7 @@ from packit.config import JobType
 from packit.config.package_config import PackageConfig, get_local_specfile_path
 from packit.constants import (
     DOWNSTREAM_PACKAGE_CHECK_URL,
+    HTTP_REQUEST_TIMEOUT,
     RELEASE_MONITORING_PACKAGE_CHECK_URL,
 )
 from packit.exceptions import PackitConfigException
@@ -171,7 +172,9 @@ class PackageConfigValidator:
         try:
             response = requests.get(
                 RELEASE_MONITORING_PACKAGE_CHECK_URL.format(package_name=package_name),
+                timeout=HTTP_REQUEST_TIMEOUT,
             )
+            response.raise_for_status()
             result = response.json()
             items = result.get("items")
 
@@ -231,6 +234,7 @@ class PackageConfigValidator:
         try:
             response = requests.get(
                 DOWNSTREAM_PACKAGE_CHECK_URL.format(package_name=package_name),
+                timeout=HTTP_REQUEST_TIMEOUT,
             )
             result = response.status_code
             if result == 404:

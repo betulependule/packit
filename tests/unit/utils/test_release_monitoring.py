@@ -211,10 +211,13 @@ class TestGetMonitoringMetadata:
             ref="rawhide",
         ).and_return("monitoring = true\n").once()
 
-        mock_service = flexmock()
+        mock_session = flexmock()
+        mock_session.should_receive("mount").twice()
+        mock_service = flexmock(session=mock_session)
         mock_service.should_receive("get_project").with_args(
             repo="test-package",
             namespace="rpms",
+            username=None,
         ).and_return(mock_project).once()
 
         flexmock(
