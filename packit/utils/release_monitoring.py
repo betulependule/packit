@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Optional, Union
 
 import requests
+from requests.adapters import HTTPAdapter
 
 try:
     import tomllib
@@ -20,6 +21,26 @@ from packit.constants import (
     DISTGIT_INSTANCES,
     HTTP_REQUEST_TIMEOUT,
 )
+
+
+class TimeoutHTTPAdapter(HTTPAdapter):
+    def __init__(self, timeout=None, *args, **kwargs):
+        self.timeout = timeout
+        super().__init__(*args, **kwargs)
+
+    def send(
+        self,
+        request,
+        stream=False,
+        timeout=None,
+        verify=True,
+        cert=None,
+        proxies=None,
+    ):
+        if timeout is None:
+            timeout = self.timeout
+        return super().send(request, stream, timeout, verify, cert, proxies)
+
 
 LEGACY_STATUS_MAP = {
     "no-monitoring": {
@@ -106,7 +127,14 @@ def get_monitoring_metadata(
         package_name = package_or_project
         instance = DISTGIT_INSTANCES["fedpkg"]
         service = PagureService(instance_url=f"https://{instance.hostname}")
-        project = service.get_project(repo=package_name, namespace=instance.namespace)
+        adapter = TimeoutHTTPAdapter(timeout=HTTP_REQUEST_TIMEOUT)
+        service.session.mount("https://", adapter)
+        service.session.mount("http://", adapter)
+        project = service.get_project(
+            repo=package_name,
+            namespace=instance.namespace,
+            username=None,
+        )
     else:
         project = package_or_project
         package_name = project.repo
