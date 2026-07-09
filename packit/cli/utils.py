@@ -300,7 +300,18 @@ def get_packit_api(
             ) from e
         logger.debug(f"Final package (job) config: {package_config}")
 
-    if dist_git_path and Path(dist_git_path) == local_project.working_dir:
+    if dist_git_path and not local_project.working_dir:
+        logger.warning(
+            f"Could not determine whether {dist_git_path} refers to the same "
+            "directory as the local project, because the local project's working "
+            "directory is unknown. Treating them as different directories.",
+        )
+
+    if (
+        dist_git_path
+        and local_project.working_dir
+        and Path(dist_git_path).resolve() == local_project.working_dir.resolve()
+    ):
         return PackitAPI(
             config=config,
             package_config=package_config,
