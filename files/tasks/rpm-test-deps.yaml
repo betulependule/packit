@@ -21,6 +21,7 @@
       - python3-pytest-timeout
       - python3-deepdiff
       - python3-flexmock
+      - python3-jsonschema
     state: present
   when: ansible_facts['distribution'] == 'Fedora'
   become: true
@@ -42,6 +43,15 @@
       - pytest-timeout
       - deepdiff
       - flexmock
+      - jsonschema
     state: latest
   when: ansible_facts['distribution'] != 'Fedora'
+  become: true
+
+# not packaged for Fedora/EPEL, install from PyPI
+- name: Install dependencies from PyPI
+  ansible.builtin.pip:
+    name:
+      - marshmallow-jsonschema
+    state: latest
   become: true

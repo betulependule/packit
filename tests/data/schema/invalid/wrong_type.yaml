@@ -1,0 +1,5 @@
+packages:
+  mypackage:
+    specfile_path: mypackage.spec
+
+jobs: not-a-list

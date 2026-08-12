@@ -74,6 +74,7 @@ testing = [
     "flexmock",
     "deepdiff",
     "distro",
+    "jsonschema",
     "setuptools", # Required for test_upstream.py/test_get_version_macro
     "setuptools-scm", # Required for tests using python-ogr.spec
 ]

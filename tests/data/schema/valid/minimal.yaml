@@ -1,0 +1,9 @@
+packages:
+  mypackage:
+    specfile_path: mypackage.spec
+
+jobs:
+  - job: copr_build
+    trigger: pull_request
+    packages:
+      - mypackage

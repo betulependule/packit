@@ -662,13 +662,47 @@ class JobConfigSchema(Schema):
     """
 
     job = fields.Enum(JobType, required=True, attribute="type")
-    trigger = fields.Enum(JobConfigTriggerType, required=True)
+    trigger = fields.Enum(
+        JobConfigTriggerType,
+        required=True,
+        metadata={
+            "_jsonschema_type_mapping": {
+                "anyOf": [
+                    {"enum": [t.value for t in JobConfigTriggerType]},
+                    {
+                        "type": "string",
+                        "pattern": r"\s*\|\s*",
+                        "description": (
+                            "pipe-separated triggers, e.g. 'commit | koji_build'"
+                        ),
+                    },
+                ],
+            },
+        },
+    )
     skip_build = fields.Boolean()
     manual_trigger = fields.Boolean()
     labels = fields.List(fields.String(), load_default=None)
     packages = fields.Dict(
         keys=fields.String(),
         values=fields.Nested(CommonConfigSchema()),
+        metadata={
+            "_jsonschema_type_mapping": {
+                "anyOf": [
+                    {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "names of the packages the job applies to",
+                    },
+                    {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/definitions/CommonConfigSchema",
+                        },
+                    },
+                ],
+            },
+        },
     )
     package = fields.String(load_default=None)
 
@@ -1026,7 +1060,29 @@ class PackageConfigSchema(Schema):
         """
         from marshmallow_jsonschema import JSONSchema
 
-        return JSONSchema().dump(cls())
+        dumped = JSONSchema().dump(cls())
+
+        # marshmallow-jsonschema emits a top-level ``$ref`` to
+        # ``#/definitions/PackageConfigSchema`` (because the schema participates
+        # in nested references) and keeps every schema in ``definitions``.
+        definitions = dumped["definitions"]
+        root = definitions["PackageConfigSchema"]
+
+        # The raw ``.packit.yaml`` format allows ``CommonConfigSchema`` keys at
+        # the top level and on individual jobs (they are rearranged into
+        # ``packages`` during pre-processing). The marshmallow
+        # ``PackageConfigSchema`` and ``JobConfigSchema`` only declare their own
+        # structural keys, so merge the common-config properties into both to
+        # validate the raw format rather than the processed one.
+        common_props = definitions["CommonConfigSchema"]["properties"]
+        root["properties"].update(common_props)
+        definitions["JobConfigSchema"]["properties"].update(common_props)
+
+        return {
+            "$schema": dumped["$schema"],
+            "definitions": definitions,
+            **root,
+        }
 
 
 class UserConfigSchema(Schema):
