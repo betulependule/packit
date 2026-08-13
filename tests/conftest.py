@@ -24,6 +24,7 @@ from tests.spellbook import (
     UPSTREAM_WEIRD_SOURCES,
     UPSTREAM_WITH_MUTLIPLE_SOURCES,
     initiate_git_repo,
+    is_ogr_upstream_spec_version_released,
     is_suitable_pyforgejo_rpm_installed,
     prepare_dist_git_repo,
 )
@@ -170,10 +171,19 @@ def distgit_with_autochangelog_and_remote(tmp_path) -> tuple[Path, Path]:
     params=[
         pytest.param(
             "",
-            marks=pytest.mark.xfail(
-                not is_suitable_pyforgejo_rpm_installed(),
-                reason="ogr (S)RPM build requires python3-pyforgejo >= 2.0.0",
-            ),
+            marks=[
+                pytest.mark.xfail(
+                    not is_suitable_pyforgejo_rpm_installed(),
+                    reason="ogr (S)RPM build requires python3-pyforgejo >= 2.0.0",
+                ),
+                pytest.mark.xfail(
+                    not is_ogr_upstream_spec_version_released(),
+                    reason=(
+                        "ogr's upstream fedora/python-ogr.spec has been bumped "
+                        "to a version that isn't published on PyPI yet"
+                    ),
+                ),
+            ],
         ),
     ],
 )

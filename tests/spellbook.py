@@ -10,10 +10,13 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+import requests
 from click.testing import CliRunner
+from specfile import Specfile
 
 from packit.cli.packit_base import packit_base
 from packit.config import Config
+from packit.constants import HTTP_REQUEST_TIMEOUT
 from packit.patches import PatchMetadata
 from packit.utils.commands import cwd, run_command
 from packit.utils.repo import create_new_repo
@@ -746,3 +749,32 @@ def is_suitable_pyforgejo_rpm_installed() -> bool:
     except subprocess.CalledProcessError:
         return False
     return compare_versions(version, "2.0.0") >= 0
+
+
+def is_ogr_upstream_spec_version_released() -> bool:
+    """
+    The ogr-distgit tests build an SRPM from a fresh clone of the real
+    https://github.com/packit/ogr and use its fedora/python-ogr.spec to
+    determine the source to download. That spec's Version can during ogr release
+    be ahead of the corresponding sdist actually being published on PyPI, which
+    makes the download 404. Detect that situation so the test can be skipped
+    instead of failing.
+
+    Returns True (i.e. "go ahead and run the test") if the check itself fails
+    for an unrelated reason, so we don't start skipping due to flakiness here.
+    """
+    try:
+        spec = requests.get(
+            "https://raw.githubusercontent.com/packit/ogr/main/fedora/python-ogr.spec",
+            timeout=HTTP_REQUEST_TIMEOUT,
+        )
+        spec.raise_for_status()
+        version = Specfile(content=spec.text, sourcedir="/").expanded_version
+        response = requests.head(
+            f"https://files.pythonhosted.org/packages/source/o/ogr/ogr-{version}.tar.gz",
+            timeout=HTTP_REQUEST_TIMEOUT,
+            allow_redirects=True,
+        )
+        return response.ok
+    except requests.exceptions.RequestException:
+        return True
