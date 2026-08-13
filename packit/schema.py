@@ -656,6 +656,15 @@ class CommonConfigSchema(Schema):
         return CommonPackageConfig(**data)
 
 
+# A job may react to multiple events, e.g. `commit | koji_build`, which is
+# expanded into separate jobs by ``PackageConfigSchema.process_job_triggers``.
+# The pattern matches one or more trigger names joined by `|` (with optional
+# whitespace), and is anchored so it does not accept arbitrary strings
+# containing a `|`.
+_TRIGGER_VALUES = "|".join(t.value for t in JobConfigTriggerType)
+_TRIGGER_PIPE_PATTERN = rf"^({_TRIGGER_VALUES})(\s*\|\s*({_TRIGGER_VALUES}))*$"
+
+
 class JobConfigSchema(Schema):
     """
     Schema for processing JobConfig config data.
@@ -671,7 +680,7 @@ class JobConfigSchema(Schema):
                     {"enum": [t.value for t in JobConfigTriggerType]},
                     {
                         "type": "string",
-                        "pattern": r"\s*\|\s*",
+                        "pattern": _TRIGGER_PIPE_PATTERN,
                         "description": (
                             "pipe-separated triggers, e.g. 'commit | koji_build'"
                         ),
