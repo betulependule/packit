@@ -1087,6 +1087,23 @@ class PackageConfigSchema(Schema):
         root["properties"].update(common_props)
         definitions["JobConfigSchema"]["properties"].update(common_props)
 
+        # A few raw-format keys are consumed before (or during) pre-processing,
+        # so they are not part of any marshmallow schema and must be allowed
+        # explicitly here:
+        #   * ``_`` is a YAML-anchor placeholder dropped by ``load_packit_yaml``.
+        #   * ``metadata`` on a job is deprecated; its contents are merged into
+        #     the job during pre-processing.
+        root["properties"]["_"] = {
+            "description": "YAML anchor placeholders (ignored by packit).",
+        }
+        definitions["JobConfigSchema"]["properties"]["metadata"] = {
+            "type": "object",
+            "description": (
+                "Deprecated: nest these options directly under the job object "
+                "instead."
+            ),
+        }
+
         return {
             "$schema": dumped["$schema"],
             "definitions": definitions,

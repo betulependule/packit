@@ -1,0 +1,14 @@
+packages:
+  mypackage:
+    specfile_path: mypackage.spec
+
+# YAML anchor placeholder, ignored by packit
+_:
+  - job: copr_build
+    trigger: pull_request
+
+jobs:
+  - job: copr_build
+    trigger: pull_request
+    packages:
+      - mypackage

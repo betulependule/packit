@@ -1,0 +1,14 @@
+packages:
+  mypackage:
+    specfile_path: mypackage.spec
+
+jobs:
+  - job: copr_build
+    trigger: pull_request
+    metadata:
+      owner: "@oamg"
+      project: leapp
+      targets:
+        - epel-8-x86_64
+    packages:
+      - mypackage
