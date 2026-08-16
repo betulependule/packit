@@ -26,7 +26,7 @@ from packit.config import (
     OshOptionsConfig,
     PackageConfig,
 )
-from packit.config.aliases import DEPRECATED_TARGET_MAP
+from packit.config.aliases import ARCHITECTURE_LIST, DEPRECATED_TARGET_MAP
 from packit.config.commands import TestCommandConfig
 from packit.config.common_package_config import MockBootstrapSetup
 from packit.config.job_config import (
@@ -365,7 +365,42 @@ class DistGitBranches(ListOrDict):
         return True
 
 
+# A Copr build target may be a stable release alias (resolved to concrete
+# chroots at runtime), a concrete Fedora/EPEL chroot, or a chroot of any other
+# Copr-supported distro.  The Fedora/EPEL namespaces are validated strictly so
+# a typo such as `fedora-unstable` is rejected, while every other distro is
+# matched loosely because that set is open-ended.
+_TARGET_ARCHES = "|".join(ARCHITECTURE_LIST)
+_TARGET_ARCH_SUFFIX = rf"(?:-(?:{_TARGET_ARCHES}))?"
+
+_TARGET_RELEASE_ALIASES = (
+    r"fedora-stable|fedora-development|fedora-latest-stable|fedora-latest"
+    r"|fedora-branched|fedora-all|fedora-rawhide|fedora-eln|epel-all"
+)
+
+_TARGET_PATTERN = (
+    rf"^(?:"
+    rf"(?:{_TARGET_RELEASE_ALIASES}){_TARGET_ARCH_SUFFIX}"  # release aliases
+    rf"|fedora-[0-9]+{_TARGET_ARCH_SUFFIX}"  # Fedora chroots
+    rf"|epel-[0-9]+(?:\.[0-9]+)?(?:-(?:branched|all))?{_TARGET_ARCH_SUFFIX}"  # EPEL chroots
+    rf"|(?!fedora-)(?!epel-).+"  # any other distro
+    rf")$"
+)
+
+
 class Targets(ListOrDict):
+    def _jsonschema_type_mapping(self):
+        return {
+            "anyOf": [
+                {"type": "string", "pattern": _TARGET_PATTERN},
+                {
+                    "type": "array",
+                    "items": {"type": "string", "pattern": _TARGET_PATTERN},
+                },
+                {"type": "object"},
+            ],
+        }
+
     def is_dict(self, value) -> bool:
         if not super().is_dict(value):
             return False

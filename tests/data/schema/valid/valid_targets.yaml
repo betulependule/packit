@@ -1,0 +1,27 @@
+packages:
+  mypackage:
+    specfile_path: mypackage.spec
+
+jobs:
+  - job: copr_build
+    trigger: pull_request
+    targets:
+      # stable release aliases
+      - fedora-stable
+      - fedora-latest-stable
+      - fedora-all
+      - epel-all
+      # alias with an explicit architecture
+      - fedora-rawhide-x86_64
+      # concrete Fedora / EPEL chroots
+      - fedora-42
+      - fedora-42-aarch64
+      - epel-9
+      - epel-10.1
+      - epel-9-branched
+      # other Copr-supported distros
+      - centos-stream-9
+      - rhel+epel-10-x86_64
+      - opensuse-tumbleweed
+    packages:
+      - mypackage
