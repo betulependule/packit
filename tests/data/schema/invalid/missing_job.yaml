@@ -1,0 +1,6 @@
+packages:
+  mypackage:
+    specfile_path: mypackage.spec
+
+jobs:
+  - trigger: pull_request

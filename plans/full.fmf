@@ -3,6 +3,13 @@ summary: Unit, integration & functional tests.
 discover+:
   filter: tag:full
 
+# marshmallow-jsonschema has no Fedora/EPEL package, install it from PyPI
+prepare:
+  - how: install
+    package: python3-pip
+  - how: shell
+    script: pip3 install marshmallow-jsonschema
+
 adjust:
   - when: "initiator == packit"
     because: "have the latest builds of ogr and specfile available for upstream test jobs"

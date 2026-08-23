@@ -26,7 +26,7 @@ from packit.config import (
     OshOptionsConfig,
     PackageConfig,
 )
-from packit.config.aliases import DEPRECATED_TARGET_MAP
+from packit.config.aliases import ARCHITECTURE_LIST, DEPRECATED_TARGET_MAP
 from packit.config.commands import TestCommandConfig
 from packit.config.common_package_config import MockBootstrapSetup
 from packit.config.job_config import (
@@ -66,6 +66,14 @@ class StringOrListOfStringsField(fields.Field):
             return [value]
         raise ValidationError(f"Expected 'list[str]' or 'str', got {type(value)!r}.")
 
+    def _jsonschema_type_mapping(self):
+        return {
+            "anyOf": [
+                {"type": "string"},
+                {"type": "array", "items": {"type": "string"}},
+            ],
+        }
+
 
 class SyncFilesItemSchema(Schema):
     """Schema for SyncFilesItem"""
@@ -101,6 +109,35 @@ class FilesToSyncField(fields.Field):
             return SyncFilesItem(src=[value], dest=value)
         raise ValidationError(f"Expected 'dict' or 'str', got {type(value)!r}.")
 
+    def _jsonschema_type_mapping(self):
+        return {
+            "anyOf": [
+                {"type": "string"},
+                {
+                    "type": "object",
+                    "properties": {
+                        "src": {
+                            "anyOf": [
+                                {"type": "string"},
+                                {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                            ],
+                        },
+                        "dest": {"type": "string"},
+                        "mkpath": {"type": "boolean"},
+                        "delete": {"type": "boolean"},
+                        "filters": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": ["src", "dest"],
+                },
+            ],
+        }
+
 
 class ActionField(fields.Field):
     """
@@ -134,6 +171,17 @@ class ActionField(fields.Field):
         if invalid_actions:
             raise ValidationError(f"Unknown action(s) provided: {invalid_actions}")
 
+    def _jsonschema_type_mapping(self):
+        return {
+            "type": "object",
+            "additionalProperties": {
+                "anyOf": [
+                    {"type": "string"},
+                    {"type": "array", "items": {"type": "string"}},
+                ],
+            },
+        }
+
 
 class NotProcessedField(fields.Field):
     """
@@ -157,6 +205,10 @@ class NotProcessedField(fields.Field):
         additional_message = self.metadata.get("additional_message")
         if additional_message:
             logger.warning(f"{additional_message}")
+
+    def _jsonschema_type_mapping(self):
+        # This field is deprecated and not processed — accept anything.
+        return {}
 
 
 class SourceSchema(Schema):
@@ -257,6 +309,14 @@ class ListOrDict(fields.Field):
             or not all(isinstance(v, dict) for v in value.values())
         )
 
+    def _jsonschema_type_mapping(self):
+        return {
+            "anyOf": [
+                {"type": "array", "items": {"type": "string"}},
+                {"type": "object"},
+            ],
+        }
+
 
 class DistGitBranches(ListOrDict):
     ERR_MESSAGE = (
@@ -305,7 +365,42 @@ class DistGitBranches(ListOrDict):
         return True
 
 
+# A Copr build target may be a stable release alias (resolved to concrete
+# chroots at runtime), a concrete Fedora/EPEL chroot, or a chroot of any other
+# Copr-supported distro.  The Fedora/EPEL namespaces are validated strictly so
+# a typo such as `fedora-unstable` is rejected, while every other distro is
+# matched loosely because that set is open-ended.
+_TARGET_ARCHES = "|".join(ARCHITECTURE_LIST)
+_TARGET_ARCH_SUFFIX = rf"(?:-(?:{_TARGET_ARCHES}))?"
+
+_TARGET_RELEASE_ALIASES = (
+    r"fedora-stable|fedora-development|fedora-latest-stable|fedora-latest"
+    r"|fedora-branched|fedora-all|fedora-rawhide|fedora-eln|epel-all"
+)
+
+_TARGET_PATTERN = (
+    rf"^(?:"
+    rf"(?:{_TARGET_RELEASE_ALIASES}){_TARGET_ARCH_SUFFIX}"  # release aliases
+    rf"|fedora-[0-9]+{_TARGET_ARCH_SUFFIX}"  # Fedora chroots
+    rf"|epel-[0-9]+(?:\.[0-9]+)?(?:-(?:branched|all))?{_TARGET_ARCH_SUFFIX}"  # EPEL chroots
+    rf"|(?!fedora-)(?!epel-).+"  # any other distro
+    rf")$"
+)
+
+
 class Targets(ListOrDict):
+    def _jsonschema_type_mapping(self):
+        return {
+            "anyOf": [
+                {"type": "string", "pattern": _TARGET_PATTERN},
+                {
+                    "type": "array",
+                    "items": {"type": "string", "pattern": _TARGET_PATTERN},
+                },
+                {"type": "object"},
+            ],
+        }
+
     def is_dict(self, value) -> bool:
         if not super().is_dict(value):
             return False
@@ -467,6 +562,11 @@ class CommonConfigSchema(Schema):
     spec_source_id = fields.Method(
         deserialize="spec_source_id_fm",
         serialize="spec_source_id_serialize",
+        metadata={
+            "_jsonschema_type_mapping": {
+                "anyOf": [{"type": "string"}, {"type": "integer"}],
+            },
+        },
     )
     files_to_sync = fields.List(FilesToSyncField())
     actions = ActionField(dump_default={})
@@ -591,19 +691,62 @@ class CommonConfigSchema(Schema):
         return CommonPackageConfig(**data)
 
 
+# A job may react to multiple events, e.g. `commit | koji_build`, which is
+# expanded into separate jobs by ``PackageConfigSchema.process_job_triggers``.
+# The pattern matches one or more trigger names joined by `|` (with optional
+# whitespace), and is anchored so it does not accept arbitrary strings
+# containing a `|`.
+_TRIGGER_VALUES = "|".join(t.value for t in JobConfigTriggerType)
+_TRIGGER_PIPE_PATTERN = rf"^({_TRIGGER_VALUES})(\s*\|\s*({_TRIGGER_VALUES}))*$"
+
+
 class JobConfigSchema(Schema):
     """
     Schema for processing JobConfig config data.
     """
 
     job = fields.Enum(JobType, required=True, attribute="type")
-    trigger = fields.Enum(JobConfigTriggerType, required=True)
+    trigger = fields.Enum(
+        JobConfigTriggerType,
+        required=True,
+        metadata={
+            "_jsonschema_type_mapping": {
+                "anyOf": [
+                    {"enum": [t.value for t in JobConfigTriggerType]},
+                    {
+                        "type": "string",
+                        "pattern": _TRIGGER_PIPE_PATTERN,
+                        "description": (
+                            "pipe-separated triggers, e.g. 'commit | koji_build'"
+                        ),
+                    },
+                ],
+            },
+        },
+    )
     skip_build = fields.Boolean()
     manual_trigger = fields.Boolean()
     labels = fields.List(fields.String(), load_default=None)
     packages = fields.Dict(
         keys=fields.String(),
         values=fields.Nested(CommonConfigSchema()),
+        metadata={
+            "_jsonschema_type_mapping": {
+                "anyOf": [
+                    {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "names of the packages the job applies to",
+                    },
+                    {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/definitions/CommonConfigSchema",
+                        },
+                    },
+                ],
+            },
+        },
     )
     package = fields.String(load_default=None)
 
@@ -947,6 +1090,60 @@ class PackageConfigSchema(Schema):
     @post_load
     def make_instance(self, data: dict, **_) -> PackageConfig:
         return PackageConfig(**data)
+
+    @classmethod
+    def json_schema(cls) -> dict:
+        """Generate a JSON Schema (Draft-07) for the PackageConfig.
+
+        Uses ``marshmallow-jsonschema`` to introspect the marshmallow
+        schema and produce a JSON Schema dict suitable for submission to
+        the `Schema Store <https://www.schemastore.org/>`_.
+
+        Returns:
+            A dict representing the JSON Schema.
+        """
+        from marshmallow_jsonschema import JSONSchema
+
+        dumped = JSONSchema().dump(cls())
+
+        # marshmallow-jsonschema emits a top-level ``$ref`` to
+        # ``#/definitions/PackageConfigSchema`` (because the schema participates
+        # in nested references) and keeps every schema in ``definitions``.
+        definitions = dumped["definitions"]
+        root = definitions["PackageConfigSchema"]
+
+        # The raw ``.packit.yaml`` format allows ``CommonConfigSchema`` keys at
+        # the top level and on individual jobs (they are rearranged into
+        # ``packages`` during pre-processing). The marshmallow
+        # ``PackageConfigSchema`` and ``JobConfigSchema`` only declare their own
+        # structural keys, so merge the common-config properties into both to
+        # validate the raw format rather than the processed one.
+        common_props = definitions["CommonConfigSchema"]["properties"]
+        root["properties"].update(common_props)
+        definitions["JobConfigSchema"]["properties"].update(common_props)
+
+        # A few raw-format keys are consumed before (or during) pre-processing,
+        # so they are not part of any marshmallow schema and must be allowed
+        # explicitly here:
+        #   * ``_`` is a YAML-anchor placeholder dropped by ``load_packit_yaml``.
+        #   * ``metadata`` on a job is deprecated; its contents are merged into
+        #     the job during pre-processing.
+        root["properties"]["_"] = {
+            "description": "YAML anchor placeholders (ignored by packit).",
+        }
+        definitions["JobConfigSchema"]["properties"]["metadata"] = {
+            "type": "object",
+            "description": (
+                "Deprecated: nest these options directly under the job object "
+                "instead."
+            ),
+        }
+
+        return {
+            "$schema": dumped["$schema"],
+            "definitions": definitions,
+            **root,
+        }
 
 
 class UserConfigSchema(Schema):

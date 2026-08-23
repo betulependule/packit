@@ -1,0 +1,7 @@
+packages:
+  mypackage:
+    specfile_path: mypackage.spec
+
+jobs:
+  - job: koji_build
+    trigger: commit | bogus

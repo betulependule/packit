@@ -18,6 +18,7 @@ require:
   - packit
   - python3-packit
   - python3-pytest-cov
+  - python3-jsonschema
   - rpm-build
   - rpmdevtools
   - python3-bodhi-client
